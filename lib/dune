@@ -1,0 +1,6 @@
+(library
+  (name micro_proto)
+  (ocamlopt_flags (-warn-error -39))
+;  (libraries base)
+;  (preprocess (pps lwt_ppx ppx_deriving.show ppx_deriving.eq ppx_bin_prot))
+)
