@@ -24,3 +24,7 @@ let (-) x y =
     return (x - y)
 
 let (=) x y = x = y
+
+let (<) x y = x < y
+
+let (<=) x y = x <= y

@@ -9,3 +9,5 @@ val zero : t
 val (+) : t -> t -> t
 val (-) : t -> t -> t result
 val (=) : t -> t -> bool
+val (<) : t -> t -> bool
+val (<=) : t -> t -> bool

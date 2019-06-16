@@ -1,5 +1,4 @@
-type 'a result
-(* Ok of 'a | Error of string *)
+type nonrec 'a result = ('a, string) result
 
 val return : 'a -> 'a result
 val error : string -> 'a result
