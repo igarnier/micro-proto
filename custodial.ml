@@ -1,4 +1,4 @@
-open Error_monad
+open State
 
 (* Un contrat "ERC20"-like *)
 module Make(_ : sig end) : Contract.S =
@@ -6,99 +6,102 @@ struct
   type storage = Mutez.t Address.Map.t
   (* The contract stores a mapping from addresses to mutez. *)
 
-  let state : storage Contract.state =
-    { storage = Address.Map.empty ;
-      balance = Mutez.zero }
+  let state = Address.Map.empty
 
-  let credit (storage : storage) (account : Address.t) (amount : Mutez.t) =
+  let credit (state : storage) (account : Address.t) (amount : Mutez.t) =
     if Mutez.(amount = zero) then
-      error "Custodial.credit: cannot credit null amount"
+      user_error "Custodial.credit: cannot credit null amount"
     else
-      match Address.Map.find account storage with
+      match Address.Map.find account state with
       | value ->
-        return @@ Address.Map.add account Mutez.(value + amount) storage
+        return @@ Address.Map.add account Mutez.(value + amount) state
       | exception Not_found ->
-        return @@ Address.Map.add account amount storage
+        return @@ Address.Map.add account amount state
 
-  let debit (storage : storage) (account : Address.t) (amount : Mutez.t) =
+  let debit (state : storage) (account : Address.t) (amount : Mutez.t) =
     if Mutez.(amount = zero) then
-      error "Custodial.debit: cannot debit null amount"
+      user_error "Custodial.debit: cannot debit null amount"
     else
-      match Address.Map.find account storage with
+      match Address.Map.find account state with
       | value ->
-        Mutez.(value - amount) >>= fun new_value ->
-        return @@ Address.Map.add account new_value storage
+        (match Mutez.(value - amount) with
+         | Ok new_value ->
+           return @@ Address.Map.add account new_value state
+         | Error err ->
+           user_error err)
       | exception Not_found ->
-        error @@
+        user_error @@
         "Custodial.debit: account "^(Address.to_string account)^" not found"
 
-  let create_account sender storage amount =
-    if Address.Map.mem sender storage then
-      error "Custodial.create_account: account already exists"
+  let create_account sender state amount =
+    if Address.Map.mem sender state then
+      user_error "Custodial.create_account: account already exists"
     else
-      credit storage sender amount
+      credit state sender amount
 
-  let internal_transfer sender storage arg =
+  let internal_transfer sender state arg =
     let open Value in
     begin match arg with
       | Tuple [ Mutez internal_amount ; Address dest ] ->
-        if Address.Map.mem dest storage then
-          debit storage sender internal_amount >>= fun storage ->
-          credit storage dest internal_amount
+        if Address.Map.mem dest state then
+          let* state = debit state sender internal_amount in
+          credit state dest internal_amount
         else
-          error "Custodial.internal_transfer: destination does not exist"
+          user_error "Custodial.internal_transfer: destination does not exist"
       | _ ->
-        error "Custodial.internal_transfer: type error"
+        user_error "Custodial.internal_transfer: type error"
     end
 
-  let internal_debit self sender storage arg =
-    let open Operation in
+  let internal_withdraw self sender state arg =
     let open Value in
     match arg with
     | Mutez amount ->
-      let value = Address.Map.find sender storage in
-      Mutez.(value - amount) >>= fun remaining ->
-      let storage = Address.Map.add sender remaining storage in
-      let op =  Transaction
+      let value = Address.Map.find sender state in
+      let* remaining =
+        match Mutez.(value - amount) with
+        | Ok remaining -> return remaining
+        | Error err -> user_error err in
+      let state = Address.Map.add sender remaining state in
+      let op = Transaction
           { sender = self ;
             target = sender ;
             entrypoint = "default" ;
             arg = Value.Unit ;
             amount } in
-      return ([ op ], storage)
+      return ([ op ], state)
     | _ ->
-      error "Custodial.internal_debit: type error"
+      user_error "Custodial.internal_debit: type error"
 
-  let dispatch ~self ~entrypoint ~sender (storage : storage) (arg : Value.t) (amount : Mutez.t) =
+  let dispatch ~env ~entrypoint ~sender ~state ~arg ~amount =
     match entrypoint with
     | "create_account" ->
-      create_account sender storage amount >>= fun storage ->
+      let* storage = create_account sender state amount in
       return ([], storage)
     | "credit" ->
-      if Address.Map.mem sender storage then
-        credit storage sender amount >>= fun storage ->
+      if Address.Map.mem sender state then
+        let* storage = credit state sender amount in
         return ([], storage)
       else
-        error "Custodial.credit: unregistered sender"
-    | "debit" ->
-      if Address.Map.mem sender storage then
+        user_error "Custodial.credit: unregistered sender"
+    | "withdraw" ->
+      if Address.Map.mem sender state then
         if Mutez.(amount = zero) then
-          internal_debit self sender storage arg
+          internal_withdraw env.Contract.self sender state arg
         else
-          error "Custodial.transfer: nonzero amount"
+          user_error "Custodial.transfer: nonzero amount"
       else
-        error "Custodial.debit: unregistered sender"
+        user_error "Custodial.debit: unregistered sender"
     | "transfer" ->
-      if Address.Map.mem sender storage then
+      if Address.Map.mem sender state then
         if Mutez.(amount = zero) then
-          internal_transfer sender storage arg >>= fun storage ->
+          let* storage = internal_transfer sender state arg in
           return ([], storage)
         else
-          error "Custodial.transfer: nonzero amount"
+          user_error "Custodial.transfer: nonzero amount"
       else
-        error "Custodial.transfer: unregistered sender"
+        user_error "Custodial.transfer: unregistered sender"
     | _ ->
-      error "Custodial.dispatch: entrypoint does not exist"
+      user_error "Custodial.dispatch: entrypoint does not exist"
 
   let show (storage : storage) =
     Address.Map.fold (fun addr mutez string ->
