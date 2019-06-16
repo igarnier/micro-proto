@@ -1,11 +1,12 @@
 module Error_monad = Error_monad
 module Chain = Chain
-module Value = Value
+
 
 module Address = Address
 module Mutez = Mutez
 
 module Contract = State.Contract
+module Value = State.Value
 
 module State :
 sig

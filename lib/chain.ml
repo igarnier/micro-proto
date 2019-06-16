@@ -45,6 +45,16 @@ let apply_operation : Value.operation -> unit State.t =
       let* () = contract_set_balance target t_balance_after in
       let* () = contract_set_balance sender s_balance_after in
       append_operations ops
+    | Origination { originator ; address ; code ; amount } ->
+      let* () = contract_set_code address code in
+      let* originator_balance = contract_get_balance originator in
+      let* originator_balance_after =
+        match Mutez.(originator_balance - amount) with
+        | Error s -> proto_error s
+        | Ok x    -> return x in
+      let* () = contract_set_balance originator originator_balance_after in
+      contract_set_balance address amount
+
 
 (* Apply all the operations in the queue until it becomes empty. *)
 let rec apply_queue : unit -> unit State.t =
