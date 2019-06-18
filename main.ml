@@ -52,6 +52,22 @@ let chain =
                              arg = Value.(Mutez (Mutez.of_int_exn 6));
                              amount = Mutez.of_int_exn 0 }) in
     let* () = apply_queue () in
+
+    let* () = apply_operation
+        Value.(Transaction { sender = account0_addr ;
+                             target = bouncer_addr ;
+                             entrypoint = "default" ;
+                             arg = Value.(Op (Transaction
+                                                { sender = account0_addr ;
+                                                  target = custodial_addr ;
+                                                  entrypoint = "credit" ;
+                                                  arg = Value.Unit ;
+                                                  amount = Mutez.of_int_exn 33 }
+                                             )) ;
+                             amount = Mutez.of_int_exn 33 }) in
+    let* () = apply_queue () in
+    let* () = dump_contract_state account0_addr in
+    let* () = dump_contract_state bouncer_addr in
     dump_contract_state custodial_addr
     (* >@> apply_operation
      *   Value.(Transaction { sender = account0_addr ;

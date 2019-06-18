@@ -20,16 +20,19 @@ struct
       else
         (match arg with
          | Op tx ->
-           let is_valid =
+           let owner_valid, has_enough =
              match tx with
              | Transaction { sender ; amount = req_amount ; _ } ->
-               Address.(sender = state.owner) &&
+               Address.(sender = state.owner),
                Mutez.(req_amount <= amount)
-             | _ -> false in
-           if is_valid then
-             return ([ tx ], { state with sent = true })
-           else
+             | _ -> false, false in
+           if not owner_valid then
+             user_error "Bouncer.dispatch: invalid sender"
+           else if not has_enough then
              user_error "Bouncer.dispatch: not enough funds"
+           else
+             return ([ tx ], { state with sent = true })
+
          | _ ->
            user_error "Bouncer.dispatch: invalid argument")
     | "oracle" ->

@@ -17,8 +17,10 @@ let originate : Address.t -> Contract.t * Mutez.t -> unit State.t =
 let apply_operation : Value.operation -> unit State.t =
   let open State in
   fun op ->
+    let s = Value.show_operation op in
+    Printf.printf "%s\n" s ;
     match op with
-    | Value.Transaction { sender ; target ; entrypoint ; arg ; amount } ->
+    | Transaction { sender ; target ; entrypoint ; arg ; amount } ->
       let* (target_ct, target_balance) = contract_find target in
       let* (sender_ct, sender_balance) = contract_find sender in
       (* T = target *)

@@ -81,6 +81,9 @@ sig
                        address : Address.t ;
                        code  : Contract.t ;
                        amount : Mutez.t }
+
+  val show : t -> string
+  val show_operation : operation -> string
 end =
 struct
   type tag = int
@@ -106,6 +109,42 @@ struct
                        address : Address.t ;
                        code  : Contract.t ;
                        amount : Mutez.t }
+
+  let rec show (x : t) =
+    match x with
+    | Unit -> "Unit"
+    | Int i -> string_of_int i
+    | Bool b -> string_of_bool b
+    | String s -> Printf.sprintf "\"%s\"" s
+    | Tuple l ->
+      let l = List.map show l in
+      let r = String.concat ";" l in
+      "[ " ^ r ^ " ]"
+    | Cons (tag, v) ->
+      Printf.sprintf "[%d]{%s}" tag (show v)
+    | Mutez m -> Mutez.to_string m
+    | Address addr -> Address.to_string addr
+    | Op op ->
+      show_operation op
+
+  and show_operation (op : operation) =
+    match op with
+    | Transaction { sender ; target ; entrypoint ; arg ; amount } ->
+      Printf.sprintf "transaction from %s to %s.%s with arg (%s), %s mutez"
+        (Address.to_string sender)
+        (Address.to_string target)
+        entrypoint
+        (show arg)
+        (Mutez.to_string amount)
+    | Origination { originator ; address ; code ; amount } ->
+      let sto =
+        let module C = (val code) in
+        C.show C.state in
+      Printf.sprintf "origination by %s to address %s, initial storage %s, amount = %s"
+        (Address.to_string originator)
+        (Address.to_string address)
+        sto
+        (Mutez.to_string amount)
 end
 
 and State :
