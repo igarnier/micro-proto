@@ -1,3 +1,4 @@
 (library
   (name micro_proto)
+  (public_name micro-proto)
   (ocamlopt_flags (-warn-error -39)))

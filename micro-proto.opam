@@ -1,0 +1,17 @@
+opam-version: "1.2"
+maintainer: "ilias.gar@gmail.com"
+authors: ["Ilias Garnier"]
+homepage: "https://github.com/igarnier/micro_proto"
+bug-reports: "https://github.com/igarnier/micro_proto/issues"
+dev-repo: "git+https://github.com/igarnier/micro_proto.git"
+license: "MIT"
+build: [
+  ["dune" "build"]
+]
+depends: [
+  "dune"                {build & >= "1.1"}
+]
+available: [ ocaml-version >= "4.04.1" ]
+descr: "
+Minimalistic, bare-bones, sequential, Tezos-like protocol for prototyping purposes
+"
