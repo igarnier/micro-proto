@@ -8,6 +8,8 @@ sig
     (** Address of contract itself *)
     balance : Mutez.t ;
     (** Balance of contract at dispatch time *)
+    now : Time.t ;
+    (** Time at dispatch time. *)
   }
 
   module type S =
@@ -35,7 +37,8 @@ end =
 struct
   type runtime_environment = {
     self  : Address.t ;
-    balance : Mutez.t
+    balance : Mutez.t ;
+    now : Time.t
   }
 
   module type S =
@@ -180,6 +183,8 @@ sig
   val contract_set_code : Address.t -> Contract.t -> unit t
   val append_operations : Value.operation list -> unit t
   val take_operation : Value.operation option t
+  val sleep : Time.span -> unit t
+  val current_time : Time.t t
 end =
 struct
 
@@ -190,7 +195,8 @@ struct
   type state =
     { storage  : storage ;
       nonce    : int ;
-      op_queue : Value.operation list }
+      op_queue : Value.operation list ;
+      time     : Time.t }
 
   (* We use a custom state+error monad for the protocol. *)
   type error =
@@ -203,7 +209,8 @@ struct
   let empty =
     { storage  = Address.Map.empty ;
       nonce    = 0 ;
-      op_queue = [ ] }
+      op_queue = [ ] ;
+      time = Time.zero }
 
   let error_to_string err =
     match err with
@@ -310,5 +317,13 @@ struct
     | op :: tl ->
       let state = { state with op_queue = tl } in
       Ok (Some op, state)
+
+  let sleep (s : Time.span) : unit t =
+    fun state ->
+    Ok ((), { state with time = Time.add state.time s })
+
+  let current_time : Time.t t =
+    fun state ->
+    Ok (state.time, state)
 
 end

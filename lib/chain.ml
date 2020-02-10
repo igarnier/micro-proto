@@ -27,8 +27,10 @@ let apply_operation : Value.operation -> unit State.t =
       let module T = (val target_ct) in
       (* S = sender *)
       let module S = (val sender_ct) in
+      let* now = State.current_time in
       let env = { Contract.self = target ;
-                  balance = target_balance } in
+                  balance = target_balance ;
+                  now } in
       let* (ops, ct_storage) =
         T.dispatch
           ~env
