@@ -7,7 +7,7 @@ Idea:
 
 (**
 Todo:
-- build "tenary" with resampling by game
+- build "ternary" with resampling by game
 - finish cl.pay dans ffuse
 - add ask field in position
 - introduce the ask/take mechanism to resell self-extensions 
